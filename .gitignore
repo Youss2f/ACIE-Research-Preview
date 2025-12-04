@@ -1,0 +1,142 @@
+# =============================================================================
+# ACIE Research Repository - Git Ignore Configuration
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Internal Development Logs (Not for public release)
+# -----------------------------------------------------------------------------
+internal_logs/
+
+# -----------------------------------------------------------------------------
+# Data Files (CRITICAL: Never commit raw/sensitive data)
+# -----------------------------------------------------------------------------
+data/
+!data/.gitkeep
+
+# DARPA OpTC and similar large datasets
+*.jsonl
+*.json.gz
+*.parquet
+
+# -----------------------------------------------------------------------------
+# Model Artifacts
+# -----------------------------------------------------------------------------
+models/
+!models/.gitkeep
+!models/pretrained/
+
+# Exclude all model weights except pretrained demos
+*.pth
+*.pt
+*.ckpt
+*.pkl
+*.h5
+
+# Exclude training history (can be regenerated)
+training_history.json
+summary.json
+
+# -----------------------------------------------------------------------------
+# Python Artifacts
+# -----------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# -----------------------------------------------------------------------------
+# Jupyter Notebooks
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints
+
+# -----------------------------------------------------------------------------
+# Environment
+# -----------------------------------------------------------------------------
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# pyenv
+.python-version
+
+# -----------------------------------------------------------------------------
+# IDEs and Editors
+# -----------------------------------------------------------------------------
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------------
+# OS Generated Files
+# -----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# -----------------------------------------------------------------------------
+# Logs and Results
+# -----------------------------------------------------------------------------
+logs/
+*.log
+results/
+
+# Tensorboard
+runs/
+tensorboard/
+
+# Weights & Biases
+wandb/
+
+# -----------------------------------------------------------------------------
+# Security (CRITICAL: Never commit credentials)
+# -----------------------------------------------------------------------------
+*.pem
+*.key
+secrets.yaml
+credentials.json
