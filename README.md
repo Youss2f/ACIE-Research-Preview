@@ -12,6 +12,8 @@
 
 <p align="center">
   <em>Figure 1: Causal Attack Graph learned from simulated DARPA OpTC logs. Nodes represent system entities; edges encode discovered causal dependencies.</em>
+  <br/>
+  <em><strong>Note:</strong> Figures represent demonstrative outputs for the Lateral Movement scenario.</em>
 </p>
 
 ---
@@ -38,6 +40,8 @@ Modern cyber-defense systems face two fundamental challenges: (1) discovering th
 
 <p align="center">
   <em>Figure 2: Model accuracy under FGSM adversarial perturbations (ε = 0.1).</em>
+  <br/>
+  <em><strong>Note:</strong> Figures represent demonstrative outputs for the Lateral Movement scenario.</em>
 </p>
 
 ---
@@ -195,8 +199,8 @@ The author is accepting a limited number of research partnerships to validate th
 3. Adversarial robustness evaluation report
 
 **Contact:**
-- Email: [your.email@domain.com]
-- LinkedIn: [linkedin.com/in/yourprofile]
+- Email: 1ouss9f@gmail.com
+- LinkedIn: https://linkedin.com/in/youss9f
 
 ---
 
