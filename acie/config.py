@@ -37,6 +37,7 @@ class TrainingConfig:
     learning_rate: float = 1e-3
     lambda_dag: float = 0.1
     lambda_robust: float = 0.5
+    lambda_semantic: float = 1.0  # Semantic consistency weight (anti-mimicry)
     weight_decay: float = 0.0
     gradient_clip: Optional[float] = None
 
@@ -283,6 +284,8 @@ class ACIEConfig:
             config.training.lambda_dag = args.lambda_dag
         if hasattr(args, 'lambda_robust'):
             config.training.lambda_robust = args.lambda_robust
+        if hasattr(args, 'lambda_semantic'):
+            config.training.lambda_semantic = args.lambda_semantic
         
         # Data parameters
         if hasattr(args, 'dataset'):
@@ -343,6 +346,7 @@ class ACIEConfig:
             f"  Learning Rate: {self.training.learning_rate}",
             f"  Lambda DAG: {self.training.lambda_dag}",
             f"  Lambda Robust: {self.training.lambda_robust}",
+            f"  Lambda Semantic: {self.training.lambda_semantic}",
             "",
             "Data:",
             f"  Dataset Type: {self.data.dataset_type}",

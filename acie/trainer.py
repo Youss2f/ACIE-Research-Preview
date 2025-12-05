@@ -27,6 +27,7 @@ class ACIETrainer:
     1. Minimize prediction loss
     2. Enforce DAG constraint (acyclicity)
     3. Maximize robust policy performance
+    4. Enforce semantic consistency (anti-mimicry defense)
     
     This class implements the Executive branch of the constitutional architecture,
     focusing purely on training execution while delegating monitoring to ACIERecorder.
@@ -38,6 +39,7 @@ class ACIETrainer:
         learning_rate: float = 1e-3,
         lambda_dag: float = 0.1,
         lambda_robust: float = 0.5,
+        lambda_semantic: float = 1.0,
         device: Union[str, torch.device] = "auto",
         recorder: Optional[ACIERecorder] = None
     ):
@@ -49,6 +51,7 @@ class ACIETrainer:
             learning_rate: Learning rate for Adam optimizer.
             lambda_dag: Weight for DAG acyclicity constraint.
             lambda_robust: Weight for robustness regularization.
+            lambda_semantic: Weight for semantic consistency constraint.
             device: Device for training (auto, cuda, cpu, or torch.device).
             recorder: Optional ACIERecorder for logging and persistence.
                       If None, a minimal internal recorder is created.
@@ -64,6 +67,7 @@ class ACIETrainer:
         self.model = model.to(self.device)
         self.lambda_dag = lambda_dag
         self.lambda_robust = lambda_robust
+        self.lambda_semantic = lambda_semantic
         self.learning_rate = learning_rate
         
         # Optimizer
@@ -80,6 +84,7 @@ class ACIETrainer:
             "train_loss": [],
             "val_loss": [],
             "dag_constraint": [],
+            "semantic_loss": [],
             "policy_accuracy": []
         }
     
@@ -88,12 +93,13 @@ class ACIETrainer:
         Multi-objective loss function combining:
         - Policy prediction loss
         - DAG acyclicity constraint
-        - Robustness regularization
+        - Semantic consistency constraint (anti-mimicry)
+        - Sparsity regularization
         """
         if outputs == "NO_THREAT":
             return torch.tensor(0.0, device=self.device)
         
-        action_probs, adjacency = outputs
+        action_probs, adjacency, semantic_loss = outputs
         
         # 1. Policy Loss
         policy_loss = self.policy_loss_fn(action_probs, targets)
@@ -101,14 +107,18 @@ class ACIETrainer:
         # 2. DAG Constraint (penalize cycles)
         dag_loss = self.lambda_dag * torch.abs(dag_constraint)
         
-        # 3. Sparsity regularization on adjacency matrix
+        # 3. Semantic Consistency Loss (anti-mimicry defense)
+        semantic_loss_weighted = self.lambda_semantic * semantic_loss
+        
+        # 4. Sparsity regularization on adjacency matrix
         sparsity_loss = 0.01 * torch.norm(adjacency, p=1)
         
-        total_loss = policy_loss + dag_loss + sparsity_loss
+        total_loss = policy_loss + dag_loss + semantic_loss_weighted + sparsity_loss
         
         return total_loss, {
             "policy_loss": policy_loss.item(),
             "dag_loss": dag_loss.item(),
+            "semantic_loss": semantic_loss.item(),
             "sparsity_loss": sparsity_loss.item()
         }
     
@@ -116,7 +126,7 @@ class ACIETrainer:
         """Train for one epoch"""
         self.model.train()
         epoch_losses = []
-        epoch_metrics = {"policy_loss": [], "dag_loss": [], "sparsity_loss": []}
+        epoch_metrics = {"policy_loss": [], "dag_loss": [], "semantic_loss": [], "sparsity_loss": []}
         
         pbar = tqdm(train_loader, desc=f"Epoch {epoch}")
         for batch_idx, (event_streams, targets) in enumerate(pbar):
@@ -131,7 +141,7 @@ class ACIETrainer:
             if outputs == "NO_THREAT":
                 continue
             
-            action_probs, adjacency = outputs
+            action_probs, adjacency, semantic_loss = outputs
             
             # Get DAG constraint directly from adjacency
             dag_constraint = torch.trace(torch.matrix_exp(adjacency * adjacency)) - self.model.nodes
@@ -151,7 +161,8 @@ class ACIETrainer:
             # Update progress bar
             pbar.set_postfix({
                 "loss": f"{loss.item():.4f}",
-                "dag": f"{metrics['dag_loss']:.4f}"
+                "dag": f"{metrics['dag_loss']:.4f}",
+                "sem": f"{metrics['semantic_loss']:.4f}"
             })
         
         # Average metrics
@@ -177,7 +188,7 @@ class ACIETrainer:
                 if outputs == "NO_THREAT":
                     continue
                 
-                action_probs, adjacency = outputs
+                action_probs, adjacency, semantic_loss = outputs
                 
                 # Get DAG constraint directly from adjacency
                 dag_constraint = torch.trace(torch.matrix_exp(adjacency * adjacency)) - self.model.nodes

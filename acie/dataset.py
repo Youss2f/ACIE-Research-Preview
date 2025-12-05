@@ -205,7 +205,8 @@ class CyberLogDataset(Dataset, BaseACIEDataset):
             1: "LATERAL_MOVEMENT",     # Node A -> Node B (database)
             2: "DATA_EXFILTRATION",    # Node B -> External IP
             3: "PRIVILEGE_ESCALATION", # Low privilege -> High privilege
-            4: "MALWARE_EXECUTION"     # Process spawn chain
+            4: "MALWARE_EXECUTION",    # Process spawn chain
+            5: "REACT_RCE_EXPLOIT"     # CVE-2025-55182: React/Next.js RCE via insecure deserialization
         }
         
         # Define cyber log field dimensions
@@ -252,6 +253,11 @@ class CyberLogDataset(Dataset, BaseACIEDataset):
         elif attack_type == 2:  # DATA_EXFILTRATION
             # Off-hours activity
             timestamp[2] = 0.95  # Late night indicator
+        elif attack_type == 5:  # REACT_RCE_EXPLOIT (CVE-2025-55182)
+            # Rapid HTTP POST followed by shell spawn
+            timestamp[0] = 0.95  # Very rapid event sequence
+            timestamp[3] = 0.9   # HTTP request timing
+            timestamp[4] = 0.85  # Process spawn timing (immediate)
         
         log[offset:offset+self.field_dims['timestamp']] = timestamp
         offset += self.field_dims['timestamp']
@@ -268,6 +274,12 @@ class CyberLogDataset(Dataset, BaseACIEDataset):
             # Internal Node B (192.168.1.200)
             source_ip[0] = 1.0
             source_ip[1:5] = [0.192, 0.168, 0.001, 0.200]
+        elif attack_type == 5:  # REACT_RCE_EXPLOIT (CVE-2025-55182)
+            # External attacker IP (malicious)
+            source_ip[0] = 0.0   # External IP flag
+            source_ip[1:5] = [0.185, 0.220, 0.101, 0.035]  # External attacker IP
+            source_ip[17] = 0.95  # Known malicious IP indicator
+            source_ip[18] = 0.9   # High threat score
         
         log[offset:offset+self.field_dims['source_ip']] = source_ip
         offset += self.field_dims['source_ip']
@@ -285,6 +297,14 @@ class CyberLogDataset(Dataset, BaseACIEDataset):
             dest_ip[0] = 0.0  # External IP flag
             dest_ip[1:5] = [0.008, 0.008, 0.008, 0.008]
             dest_ip[16] = 0.95  # Suspicious external connection
+        elif attack_type == 5:  # REACT_RCE_EXPLOIT (CVE-2025-55182)
+            # Next.js server (internal, ports 3000 or 443)
+            dest_ip[0] = 1.0   # Internal IP flag
+            dest_ip[1:5] = [0.192, 0.168, 0.001, 0.050]  # Next.js server IP
+            dest_ip[6] = 0.95  # Port 3000 indicator (Next.js default)
+            dest_ip[7] = 0.85  # Port 443 indicator (HTTPS)
+            dest_ip[14] = 0.9  # Web server flag
+            dest_ip[19] = 0.95 # Node.js runtime flag
         
         log[offset:offset+self.field_dims['dest_ip']] = dest_ip
         offset += self.field_dims['dest_ip']
@@ -304,6 +324,13 @@ class CyberLogDataset(Dataset, BaseACIEDataset):
             # Suspicious process chain
             process_id[2] = 0.9   # Child process indicator
             process_id[12] = 0.85 # Suspicious behavior
+        elif attack_type == 5:  # REACT_RCE_EXPLOIT (CVE-2025-55182)
+            # Node.js spawning shell (critical RCE indicator)
+            process_id[3] = 0.98  # Node.js process flag
+            process_id[4] = 0.95  # Shell spawn indicator (sh/cmd.exe)
+            process_id[13] = 0.99 # Process chain: node -> shell (CRITICAL)
+            process_id[14] = 0.9  # Deserialization context flag
+            process_id[15] = 0.85 # React Flight protocol indicator
         
         log[offset:offset+self.field_dims['process_id']] = process_id
         offset += self.field_dims['process_id']
@@ -334,6 +361,16 @@ class CyberLogDataset(Dataset, BaseACIEDataset):
         elif attack_type == 4:  # MALWARE_EXECUTION
             event_idx = 0  # PROCESS_CREATE
             event_type[23] = 0.9  # Malware signature
+        elif attack_type == 5:  # REACT_RCE_EXPLOIT (CVE-2025-55182)
+            event_idx = 1  # NETWORK_CONNECT (HTTP_POST)
+            # React Flight Protocol exploit signatures
+            event_type[10] = 0.98  # HTTP POST indicator
+            event_type[11] = 0.95  # High payload entropy (serialized data)
+            event_type[12] = 0.92  # Content-Type: application/octet-stream
+            event_type[13] = 0.99  # Deserialization trigger detected
+            event_type[24] = 0.99  # CVE-2025-55182 signature (CRITICAL)
+            event_type[25] = 0.95  # Shell spawn following HTTP request
+            event_type[26] = 0.90  # Reverse shell establishment attempt
         
         event_type[event_idx] = 1.0  # One-hot encoding
         

@@ -43,6 +43,7 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--lambda-dag", type=float, default=0.1, help="DAG constraint weight")
     parser.add_argument("--lambda-robust", type=float, default=0.5, help="Robustness weight")
+    parser.add_argument("--lambda-semantic", type=float, default=1.0, help="Semantic consistency weight")
     
     # Data parameters
     parser.add_argument("--dataset", type=str, default="synthetic", 
@@ -231,6 +232,7 @@ def main():
         learning_rate=config.training.learning_rate,
         lambda_dag=config.training.lambda_dag,
         lambda_robust=config.training.lambda_robust,
+        lambda_semantic=getattr(config.training, 'lambda_semantic', 1.0),
         device=device,
         recorder=recorder
     )
