@@ -222,6 +222,199 @@ def generate_causal_graph_matplotlib(output_path):
     print(f"[SUCCESS] Fallback saved: {output_path}")
 
 
+def generate_react_rce_graph():
+    """
+    Generate a visualization of the React/Next.js RCE Kill Chain (CVE-2025-55182).
+    
+    Kill Chain:
+        Attacker IP -> Next.js Server (HTTP_POST) -> Deserialization Event 
+        -> Shell Execution -> Reverse Shell (C2)
+    
+    Uses PURPLE (#9B59B6) to distinguish from Lateral Movement (red).
+    """
+    print("Generating React RCE Kill Chain Graph...")
+    
+    output_path = Path("docs/assets/react_rce_graph.png")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # PlantUML diagram for React RCE Kill Chain
+    plantuml_code = """
+@startuml
+!define PURPLE #9B59B6
+!define DARK_PURPLE #8E44AD
+!define LIGHT_PURPLE #BB8FCE
+!define GRAY #7F8C8D
+!define RED #E74C3C
+
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor PURPLE
+skinparam ArrowThickness 2
+
+title <b>React/Next.js RCE Kill Chain</b>\\n<size:11>(CVE-2025-55182: Insecure Deserialization in React Flight Protocol)</size>
+
+rectangle "Attacker\\n(External IP)" as attacker LIGHT_PURPLE
+rectangle "Next.js Server\\n(Port 3000/443)" as nextjs PURPLE
+rectangle "React Flight\\nDeserialization" as deser PURPLE
+rectangle "Shell Execution\\n(node -> shell)" as shell DARK_PURPLE
+rectangle "Reverse Shell\\n(C2 Channel)" as c2 RED
+
+attacker -[PURPLE,bold]-> nextjs : <color:PURPLE>HTTP_POST\\n(high entropy payload)</color>
+nextjs -[PURPLE,bold]-> deser : <color:PURPLE>__proto__ pollution\\nvia Flight protocol</color>
+deser -[DARK_PURPLE,bold]-> shell : <color:DARK_PURPLE>Code injection\\n(process spawn)</color>
+shell -[RED,bold]-> c2 : <color:RED>Outbound connection\\n(attacker-controlled)</color>
+
+note bottom of deser
+  <b>ACIE Detection:</b>
+  Semantic Rule 7-9 triggers
+  on HTTP_POST + high entropy
+  + shell spawn pattern.
+  <b>Penalty: 10.0 (Maximum)</b>
+end note
+
+legend right
+  | <back:LIGHT_PURPLE>   </back> | Initial Access |
+  | <back:PURPLE>   </back> | Exploitation Phase |
+  | <back:DARK_PURPLE>   </back> | Code Execution |
+  | <back:RED>   </back> | Post-Exploitation |
+endlegend
+
+@enduml
+"""
+    
+    success = False
+    
+    # Method 1: PlantUML online server
+    try:
+        import zlib
+        import base64
+        
+        # PlantUML encoding
+        compressed = zlib.compress(plantuml_code.encode('utf-8'), 9)
+        encoded = base64.b64encode(compressed).decode('ascii')
+        
+        # PlantUML uses a custom base64 encoding
+        plantuml_alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
+        base64_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        
+        trans = str.maketrans(base64_alphabet, plantuml_alphabet)
+        encoded = encoded.translate(trans)
+        
+        url = f"http://www.plantuml.com/plantuml/png/{encoded}"
+        
+        urllib.request.urlretrieve(url, output_path)
+        success = True
+        print(f"[SUCCESS] Generated via PlantUML server: {output_path}")
+    except Exception as e:
+        print(f"[WARN] PlantUML server failed: {e}")
+    
+    # Method 2: Fallback to matplotlib
+    if not success:
+        print("[INFO] Falling back to matplotlib generation...")
+        generate_react_rce_matplotlib(output_path)
+    
+    return output_path
+
+
+def generate_react_rce_matplotlib(output_path):
+    """Fallback matplotlib-based React RCE graph generation."""
+    import networkx as nx
+    
+    G = nx.DiGraph()
+    
+    # Node definitions
+    nodes = {
+        0: ("Attacker\n(External IP)", "#BB8FCE"),      # Light purple
+        1: ("Next.js Server\n(Port 3000/443)", "#9B59B6"),  # Purple
+        2: ("React Flight\nDeserialization", "#9B59B6"),     # Purple
+        3: ("Shell Execution\n(node -> shell)", "#8E44AD"),  # Dark purple
+        4: ("Reverse Shell\n(C2 Channel)", "#E74C3C"),       # Red
+    }
+    
+    for node_id, (label, color) in nodes.items():
+        G.add_node(node_id, label=label, color=color)
+    
+    # Edges (kill chain)
+    edges = [(0, 1), (1, 2), (2, 3), (3, 4)]
+    G.add_edges_from(edges)
+    
+    fig, ax = plt.subplots(figsize=(14, 8))
+    
+    # Linear layout for kill chain
+    pos = {
+        0: (0, 0),
+        1: (2, 0),
+        2: (4, 0),
+        3: (6, 0),
+        4: (8, 0),
+    }
+    
+    # Draw nodes
+    node_colors = [nodes[i][1] for i in range(5)]
+    nx.draw_networkx_nodes(G, pos, node_size=4000, node_color=node_colors, 
+                          alpha=0.9, ax=ax)
+    
+    # Draw edges with gradient (purple to red)
+    edge_colors = ['#9B59B6', '#9B59B6', '#8E44AD', '#E74C3C']
+    for i, edge in enumerate(edges):
+        nx.draw_networkx_edges(G, pos, edgelist=[edge], edge_color=edge_colors[i],
+                              width=3, arrows=True, arrowsize=30,
+                              connectionstyle="arc3,rad=0.0", ax=ax)
+    
+    # Draw labels
+    labels = {i: nodes[i][0] for i in range(5)}
+    nx.draw_networkx_labels(G, pos, labels, font_size=9, font_weight='bold',
+                           font_color='white', ax=ax)
+    
+    # Edge labels
+    edge_labels = {
+        (0, 1): "HTTP_POST\n(high entropy)",
+        (1, 2): "__proto__\npollution",
+        (2, 3): "Code injection\n(process spawn)",
+        (3, 4): "Outbound\nconnection",
+    }
+    nx.draw_networkx_edge_labels(G, pos, edge_labels, font_size=8, 
+                                 font_color='#333333', ax=ax)
+    
+    # Title
+    ax.set_title("React/Next.js RCE Kill Chain (CVE-2025-55182)\n"
+                "Insecure Deserialization in React Flight Protocol", 
+                fontsize=14, fontweight='bold', pad=20)
+    
+    # Add detection note
+    textstr = ('ACIE Detection:\n'
+               'Semantic Rules 7-9 trigger on\n'
+               'HTTP_POST + high entropy +\n'
+               'shell spawn pattern.\n'
+               'Penalty: 10.0 (Maximum)')
+    props = dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='#9B59B6')
+    ax.text(0.5, -0.15, textstr, transform=ax.transAxes, fontsize=9,
+            verticalalignment='top', horizontalalignment='center', bbox=props)
+    
+    # Legend
+    legend_elements = [
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#BB8FCE', 
+                   markersize=12, label='Initial Access'),
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#9B59B6', 
+                   markersize=12, label='Exploitation Phase'),
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#8E44AD', 
+                   markersize=12, label='Code Execution'),
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#E74C3C', 
+                   markersize=12, label='Post-Exploitation'),
+    ]
+    ax.legend(handles=legend_elements, loc='upper right', fontsize=9)
+    
+    ax.axis('off')
+    ax.set_xlim(-1, 9)
+    ax.set_ylim(-1.5, 1.5)
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight', facecolor='white')
+    plt.close()
+    print(f"[SUCCESS] Fallback saved: {output_path}")
+
+
 def generate_robustness_plot():
     """
     Generate a demonstrative Adversarial Robustness comparison plot.
@@ -319,13 +512,15 @@ def main():
     # Generate artifacts
     causal_path = generate_causal_graph()
     robustness_path = generate_robustness_plot()
+    react_rce_path = generate_react_rce_graph()
     
     print()
     print("="*60)
     print("ARTIFACT GENERATION COMPLETE")
     print("="*60)
-    print(f"  Causal Graph:    {causal_path}")
-    print(f"  Robustness Plot: {robustness_path}")
+    print(f"  Causal Graph:      {causal_path}")
+    print(f"  Robustness Plot:   {robustness_path}")
+    print(f"  React RCE Graph:   {react_rce_path}")
     print()
     print("These artifacts are ready for the README.md showcase.")
 
